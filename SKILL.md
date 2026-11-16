@@ -14,7 +14,7 @@ registry:
 
 **IMPORTANT - READ BEFORE INSTALLING:**
 
-This skill **uploads your files to the configured API host** for OCR processing. The default host is Mistral (`https://api.mistral.ai`). A custom `MISTRAL_BASE_URL` sends files to that host instead.
+This skill **sends your files to the configured API host** in the `/v1/ocr` request. It does not upload them through `/v1/files`. The default host is Mistral (`https://api.mistral.ai`). A custom `base_url` sends files to that host instead.
 
 **Do NOT use with sensitive or confidential documents** unless:
 - You trust Mistral's data handling policies
@@ -90,7 +90,7 @@ python3 mistral_ocr.py -i input.pdf --base-url https://your-proxy.example
 ## Data Privacy
 
 **What happens to your files:**
-1. Files are uploaded to the configured API base URL (Mistral by default)
+1. File bytes are sent in the `/v1/ocr` request to the configured API base URL (Mistral by default)
 2. Files are processed on that server
 3. Processing results are returned to you
 4. Whether that host keeps the file depends on the host. Mistral's own policy says files are not stored on Mistral servers

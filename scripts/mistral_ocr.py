@@ -45,6 +45,16 @@ except ImportError as exc:
 DEFAULT_API_BASE_URL = "https://api.mistral.ai"
 CONFIG_PATH = Path(__file__).resolve().parent / "config.json"
 _script_config = None
+IMAGE_MEDIA_TYPES = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
+    ".gif": "image/gif",
+    ".bmp": "image/bmp",
+    ".tif": "image/tiff",
+    ".tiff": "image/tiff",
+}
 
 
 def script_config():
@@ -185,6 +195,24 @@ def save_images_from_page(page, images_dir, page_num):
     return page_md
 
 
+def document_payload(input_path):
+    """Build the /v1/ocr document from a local file. Do not use /v1/files."""
+    encoded = base64.b64encode(input_path.read_bytes()).decode("ascii")
+    suffix = input_path.suffix.lower()
+    image_type = IMAGE_MEDIA_TYPES.get(suffix)
+    if image_type:
+        return {
+            "type": "image_url",
+            "image_url": f"data:{image_type};base64,{encoded}",
+        }
+    media_type = "application/pdf" if suffix == ".pdf" else "application/octet-stream"
+    return {
+        "type": "document_url",
+        "document_url": f"data:{media_type};base64,{encoded}",
+        "document_name": input_path.name,
+    }
+
+
 def process_pdf(input_path, output_format="markdown", output_dir=None, base_url=None):
     """Process PDF file."""
     input_path = Path(input_path)
@@ -216,26 +244,8 @@ def process_pdf(input_path, output_format="markdown", output_dir=None, base_url=
         raise
     
     print(f"[*] Processing: {input_path.name}")
-    
-    # Upload file
-    uploaded_file = client.files.upload(
-        file={
-            "file_name": input_path.stem,
-            "content": input_path.read_bytes(),
-        },
-        purpose="ocr",
-    )
-    
-    # Get signed URL
-    signed_url = client.files.get_signed_url(file_id=uploaded_file.id, expiry=1)
-    
-    # OCR processing
     result = client.ocr.process(
-        document={
-            "type": "document_url",
-            "document_url": signed_url.url,
-            "document_name": input_path.name,
-        },
+        document=document_payload(input_path),
         model="mistral-ocr-latest",
         include_image_base64=True,
     )
