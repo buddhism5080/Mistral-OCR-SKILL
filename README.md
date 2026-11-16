@@ -65,20 +65,24 @@ You need a Mistral API key to use this tool.
 **Get your API key:**
 👉 [https://console.mistral.ai/home](https://console.mistral.ai/home)
 
-**Save it once** in `~/.pi/agent/settings.json`, inside the existing `env` object. Pi reads this file on every run, including new agent sessions.
+**Save it once** in `scripts/config.json`, next to `scripts/mistral_ocr.py`. This file is local and is not part of the repository.
+
+```bash
+cp scripts/config.example.json scripts/config.json
+```
 
 ```json
-"env": {
-  "MISTRAL_API_KEY": "your_api_key_here",
-  "MISTRAL_BASE_URL": "https://your-api-host.example"
+{
+  "api_key": "your_api_key_here",
+  "base_url": "https://your-api-host.example"
 }
 ```
 
-`MISTRAL_BASE_URL` is optional. Leave it out to use `https://api.mistral.ai`.
+`base_url` is optional. Leave it empty or omit it to use `https://api.mistral.ai`.
 
 ## API Base URL (Optional)
 
-By default requests go to `https://api.mistral.ai`. Set `MISTRAL_BASE_URL` in the `env` object above, or pass `--base-url` for one command. A process environment variable overrides the file, and `--base-url` overrides both.
+By default requests go to `https://api.mistral.ai`. Set `base_url` in `scripts/config.json`, or pass `--base-url` for one command. `MISTRAL_BASE_URL` overrides the file, and `--base-url` overrides both.
 
 Use the server root. The client appends `/v1/...` itself, so do not include `/v1`.
 
@@ -123,7 +127,7 @@ python3 mistral_ocr.py -i image.png -f markdown
 | `-i, --input` | Input file path (required) |
 | `-f, --format` | Output format: markdown/json/html (default: markdown) |
 | `-o, --output` | Output directory (default: ./ocr_result) |
-| `-b, --base-url` | API server root. Overrides `MISTRAL_BASE_URL`. Default: `https://api.mistral.ai` |
+| `-b, --base-url` | API server root. Overrides `scripts/config.json` and `MISTRAL_BASE_URL`. Default: `https://api.mistral.ai` |
 
 ## Output
 
@@ -146,7 +150,7 @@ After processing, you'll get:
 
 **"MISTRAL_API_KEY is not set" error:**
 
-Add `MISTRAL_API_KEY` to the `env` object in `~/.pi/agent/settings.json`. A process environment variable with the same name overrides that file.
+Copy `scripts/config.example.json` to `scripts/config.json` and set `api_key`. `MISTRAL_API_KEY` overrides that file when it is set.
 
 **Requests hit the wrong host, or `/v1/v1/ocr`:**
 

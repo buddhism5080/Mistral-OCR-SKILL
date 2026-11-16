@@ -3,8 +3,7 @@
 Mistral OCR Tool - Convert PDF/images to Markdown/JSON/HTML
 
 Usage:
-    1. Put the key and optional base URL in ~/.pi/agent/settings.json under env,
-       or export MISTRAL_API_KEY and MISTRAL_BASE_URL
+    1. Copy scripts/config.example.json to scripts/config.json and fill it in
     2. Run: python3 mistral_ocr.py -i input.pdf -f markdown
 
 Get API key: https://console.mistral.ai/home
@@ -20,55 +19,56 @@ import json
 
 
 DEFAULT_API_BASE_URL = "https://api.mistral.ai"
-_settings_env = None
+CONFIG_PATH = Path(__file__).resolve().parent / "config.json"
+_script_config = None
 
 
-def pi_agent_settings_path():
-    """Pi user settings. PI_CODING_AGENT_DIR overrides the default location."""
-    agent_dir = os.environ.get("PI_CODING_AGENT_DIR", "").strip()
-    if agent_dir:
-        return Path(agent_dir).expanduser() / "settings.json"
-    return Path.home() / ".pi" / "agent" / "settings.json"
-
-
-def pi_settings_value(name):
-    """Read one string from the env object in Pi settings."""
-    global _settings_env
-    if _settings_env is None:
-        _settings_env = {}
+def script_config():
+    """Load scripts/config.json next to this file. Missing file means no saved settings."""
+    global _script_config
+    if _script_config is None:
+        _script_config = {}
         try:
-            data = json.loads(pi_agent_settings_path().read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
+            data = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+        except FileNotFoundError:
             data = None
-        env = data.get("env") if isinstance(data, dict) else None
-        if isinstance(env, dict):
-            _settings_env = {
-                key: value.strip()
-                for key, value in env.items()
-                if isinstance(key, str) and isinstance(value, str) and value.strip()
-            }
-    return _settings_env.get(name, "")
+        except json.JSONDecodeError as exc:
+            print(f"[!] Error: {CONFIG_PATH} is not valid JSON: {exc}")
+            raise SystemExit(1)
+        if isinstance(data, dict):
+            _script_config = data
+        elif data is not None:
+            print(f"[!] Error: {CONFIG_PATH} must be a JSON object.")
+            raise SystemExit(1)
+    return _script_config
 
 
-def configured_value(name):
-    """Process environment wins over Pi settings, so a shell export can override."""
-    raw = os.environ.get(name, "")
+def config_string(key):
+    value = script_config().get(key, "")
+    if not isinstance(value, str):
+        return ""
+    return value.strip()
+
+
+def configured_value(env_name, config_key):
+    """Process environment overrides the config file beside this script."""
+    raw = os.environ.get(env_name, "")
     if raw.strip():
         return raw
-    return pi_settings_value(name)
+    return config_string(config_key)
 
 
 def resolve_base_url(cli_base_url=None):
     """Return a custom API server root, or None for the SDK default.
 
-    Precedence is --base-url, then MISTRAL_BASE_URL from the process environment,
-    then the same name in ~/.pi/agent/settings.json env. The value is the server
-    root, such as https://api.mistral.ai. The client appends /v1 itself.
+    Precedence is --base-url, then MISTRAL_BASE_URL, then base_url in
+    scripts/config.json. The value is the server root, such as
+    https://api.mistral.ai. The client appends /v1 itself.
     """
     if cli_base_url is not None:
         raw = cli_base_url
     else:
-        raw = configured_value("MISTRAL_BASE_URL")
+        raw = configured_value("MISTRAL_BASE_URL", "base_url")
 
     base_url = raw.strip().strip("'\"").rstrip("/")
     if not base_url:
@@ -93,20 +93,22 @@ Use {base_url[:-3]} instead. Requests go to <base-url>/v1/ocr.
 
 
 def get_api_key():
-    """Get the API key from the process environment or Pi settings."""
-    api_key = configured_value("MISTRAL_API_KEY").strip().strip("'\"")
+    """Get the API key from the process environment or scripts/config.json."""
+    api_key = configured_value("MISTRAL_API_KEY", "api_key").strip().strip("'\"")
     if not api_key:
-        print("""
-[!] Error: MISTRAL_API_KEY is not set.
+        example = CONFIG_PATH.with_name("config.example.json")
+        print(f"""
+[!] Error: API key is not set.
 
-Add it once to ~/.pi/agent/settings.json:
+Copy {example.name} to {CONFIG_PATH.name} beside this script and set api_key:
 
-  "env": {
-    "MISTRAL_API_KEY": "your_api_key",
-    "MISTRAL_BASE_URL": "https://your-api-host.example"
-  }
+  {{
+    "api_key": "your_api_key",
+    "base_url": "https://your-api-host.example"
+  }}
 
-Or export MISTRAL_API_KEY. A value in the process environment overrides settings.json.
+Path: {CONFIG_PATH}
+MISTRAL_API_KEY overrides the file when it is set.
 Get a key at https://console.mistral.ai/home
         """)
         raise SystemExit(1)
@@ -270,7 +272,7 @@ def main():
     parser.add_argument(
         "-b", "--base-url",
         help=(
-            "API server root. Overrides MISTRAL_BASE_URL. "
+            "API server root. Overrides scripts/config.json and MISTRAL_BASE_URL. "
             f"Default: {DEFAULT_API_BASE_URL}. Do not include /v1."
         ),
     )

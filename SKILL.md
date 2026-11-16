@@ -1,6 +1,6 @@
 ---
 name: mistral-ocr
-description: "Convert PDF/images to Markdown/JSON/HTML using Mistral OCR API. Supports image extraction, table recognition, header/footer handling, multi-column layouts, and a custom API base URL via MISTRAL_BASE_URL or --base-url. Usage: Upload a file and say Use Mistral OCR to process this."
+description: "Convert PDF/images to Markdown/JSON/HTML using Mistral OCR API. Supports image extraction, table recognition, header/footer handling, multi-column layouts, and a custom API base URL in scripts/config.json, MISTRAL_BASE_URL, or --base-url. Usage: Upload a file and say Use Mistral OCR to process this."
 registry:
   homepage: https://github.com/buddhism5080/Mistral-OCR-SKILL
   author: YZDame
@@ -47,18 +47,18 @@ pip install -r requirements.txt
 **Get your API key:**
 👉 https://console.mistral.ai/home
 
-**Save the key and base URL once** in `~/.pi/agent/settings.json`, inside the existing `env` object. Every new Pi session reads it. You do not export it again.
+**Save the key and base URL once** in `scripts/config.json`, next to `scripts/mistral_ocr.py`. Copy `scripts/config.example.json` and edit the copy. The config file stays on the machine that runs the script.
 
 ```json
-"env": {
-  "MISTRAL_API_KEY": "your_api_key",
-  "MISTRAL_BASE_URL": "https://your-api-host.example"
+{
+  "api_key": "your_api_key",
+  "base_url": "https://your-api-host.example"
 }
 ```
 
-`MISTRAL_BASE_URL` is optional. Leave it out to use `https://api.mistral.ai`. Use the server root, not a `/v1` path. The client appends `/v1` itself.
+`base_url` is optional. Leave it empty to use `https://api.mistral.ai`. Use the server root, not a `/v1` path. The client appends `/v1` itself.
 
-A process environment variable with the same name overrides the file. `--base-url` overrides both for that one command.
+`MISTRAL_API_KEY` and `MISTRAL_BASE_URL` override the file. `--base-url` overrides both for that one command.
 
 ## CLI Usage
 
@@ -85,7 +85,7 @@ python3 mistral_ocr.py -i input.pdf --base-url https://your-proxy.example
 | `-i, --input` | Input file path (required) |
 | `-f, --format` | Output format: markdown/json/html (default: markdown) |
 | `-o, --output` | Output directory |
-| `-b, --base-url` | API server root. Overrides `MISTRAL_BASE_URL`. Default: `https://api.mistral.ai` |
+| `-b, --base-url` | API server root. Overrides `scripts/config.json` and `MISTRAL_BASE_URL`. Default: `https://api.mistral.ai` |
 
 ## Data Privacy
 
