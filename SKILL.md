@@ -47,19 +47,18 @@ pip install -r requirements.txt
 **Get your API key:**
 👉 https://console.mistral.ai/home
 
-**Set the environment variable:**
+**Save the key and base URL once** in `~/.pi/agent/settings.json`, inside the existing `env` object. Every new Pi session reads it. You do not export it again.
 
-```bash
-export MISTRAL_API_KEY=your_api_key
+```json
+"env": {
+  "MISTRAL_API_KEY": "your_api_key",
+  "MISTRAL_BASE_URL": "https://your-api-host.example"
+}
 ```
 
-Optional custom API server root (`--base-url` overrides this):
+`MISTRAL_BASE_URL` is optional. Leave it out to use `https://api.mistral.ai`. Use the server root, not a `/v1` path. The client appends `/v1` itself.
 
-```bash
-export MISTRAL_BASE_URL=https://api.eu.mistral.ai
-```
-
-Use the server root, not a `/v1` path. The client appends `/v1` itself. Official roots: `https://api.mistral.ai`, `https://api.eu.mistral.ai`, `https://api.us.mistral.ai`.
+A process environment variable with the same name overrides the file. `--base-url` overrides both for that one command.
 
 ## CLI Usage
 

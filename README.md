@@ -65,20 +65,20 @@ You need a Mistral API key to use this tool.
 **Get your API key:**
 👉 [https://console.mistral.ai/home](https://console.mistral.ai/home)
 
-**Set the environment variable:**
+**Save it once** in `~/.pi/agent/settings.json`, inside the existing `env` object. Pi reads this file on every run, including new agent sessions.
 
-```bash
-# Temporary (current terminal session)
-export MISTRAL_API_KEY=your_api_key_here
-
-# Permanent (add to ~/.zshrc or ~/.bashrc)
-echo 'export MISTRAL_API_KEY=your_api_key_here' >> ~/.zshrc
-source ~/.zshrc
+```json
+"env": {
+  "MISTRAL_API_KEY": "your_api_key_here",
+  "MISTRAL_BASE_URL": "https://your-api-host.example"
+}
 ```
+
+`MISTRAL_BASE_URL` is optional. Leave it out to use `https://api.mistral.ai`.
 
 ## API Base URL (Optional)
 
-By default requests go to `https://api.mistral.ai`. Point the client at another Mistral region or a compatible proxy with `MISTRAL_BASE_URL` or `--base-url`. `--base-url` wins when both are set.
+By default requests go to `https://api.mistral.ai`. Set `MISTRAL_BASE_URL` in the `env` object above, or pass `--base-url` for one command. A process environment variable overrides the file, and `--base-url` overrides both.
 
 Use the server root. The client appends `/v1/...` itself, so do not include `/v1`.
 
@@ -146,13 +146,7 @@ After processing, you'll get:
 
 **"MISTRAL_API_KEY is not set" error:**
 
-Make sure you've set the environment variable correctly. Run:
-
-```bash
-echo $MISTRAL_API_KEY
-```
-
-If nothing is returned, re-set the API key following the instructions above.
+Add `MISTRAL_API_KEY` to the `env` object in `~/.pi/agent/settings.json`. A process environment variable with the same name overrides that file.
 
 **Requests hit the wrong host, or `/v1/v1/ocr`:**
 

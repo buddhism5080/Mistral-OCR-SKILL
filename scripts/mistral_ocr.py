@@ -3,9 +3,9 @@
 Mistral OCR Tool - Convert PDF/images to Markdown/JSON/HTML
 
 Usage:
-    1. Set API key: export MISTRAL_API_KEY=your_api_key
-    2. Optional: export MISTRAL_BASE_URL=https://your-api-host.example
-    3. Run: python3 mistral_ocr.py -i input.pdf -f markdown
+    1. Put the key and optional base URL in ~/.pi/agent/settings.json under env,
+       or export MISTRAL_API_KEY and MISTRAL_BASE_URL
+    2. Run: python3 mistral_ocr.py -i input.pdf -f markdown
 
 Get API key: https://console.mistral.ai/home
 Default API base URL: https://api.mistral.ai
@@ -20,18 +20,55 @@ import json
 
 
 DEFAULT_API_BASE_URL = "https://api.mistral.ai"
+_settings_env = None
+
+
+def pi_agent_settings_path():
+    """Pi user settings. PI_CODING_AGENT_DIR overrides the default location."""
+    agent_dir = os.environ.get("PI_CODING_AGENT_DIR", "").strip()
+    if agent_dir:
+        return Path(agent_dir).expanduser() / "settings.json"
+    return Path.home() / ".pi" / "agent" / "settings.json"
+
+
+def pi_settings_value(name):
+    """Read one string from the env object in Pi settings."""
+    global _settings_env
+    if _settings_env is None:
+        _settings_env = {}
+        try:
+            data = json.loads(pi_agent_settings_path().read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            data = None
+        env = data.get("env") if isinstance(data, dict) else None
+        if isinstance(env, dict):
+            _settings_env = {
+                key: value.strip()
+                for key, value in env.items()
+                if isinstance(key, str) and isinstance(value, str) and value.strip()
+            }
+    return _settings_env.get(name, "")
+
+
+def configured_value(name):
+    """Process environment wins over Pi settings, so a shell export can override."""
+    raw = os.environ.get(name, "")
+    if raw.strip():
+        return raw
+    return pi_settings_value(name)
 
 
 def resolve_base_url(cli_base_url=None):
     """Return a custom API server root, or None for the SDK default.
 
-    Precedence is --base-url, then MISTRAL_BASE_URL. The value is the server
+    Precedence is --base-url, then MISTRAL_BASE_URL from the process environment,
+    then the same name in ~/.pi/agent/settings.json env. The value is the server
     root, such as https://api.mistral.ai. The client appends /v1 itself.
     """
     if cli_base_url is not None:
         raw = cli_base_url
     else:
-        raw = os.environ.get("MISTRAL_BASE_URL", "")
+        raw = configured_value("MISTRAL_BASE_URL")
 
     base_url = raw.strip().strip("'\"").rstrip("/")
     if not base_url:
@@ -56,21 +93,21 @@ Use {base_url[:-3]} instead. Requests go to <base-url>/v1/ocr.
 
 
 def get_api_key():
-    """Get API Key from environment variable."""
-    api_key = os.environ.get("MISTRAL_API_KEY")
+    """Get the API key from the process environment or Pi settings."""
+    api_key = configured_value("MISTRAL_API_KEY").strip().strip("'\"")
     if not api_key:
         print("""
-[!] Error: MISTRAL_API_KEY environment variable is not set.
+[!] Error: MISTRAL_API_KEY is not set.
 
-To use this tool, you need a Mistral API key:
+Add it once to ~/.pi/agent/settings.json:
 
-1. Visit: https://console.mistral.ai/home
-2. Sign up/Login and create an API key
-3. Set the environment variable:
-   
-   export MISTRAL_API_KEY=your_api_key
+  "env": {
+    "MISTRAL_API_KEY": "your_api_key",
+    "MISTRAL_BASE_URL": "https://your-api-host.example"
+  }
 
-For permanent setup, add the line above to your ~/.zshrc or ~/.bashrc
+Or export MISTRAL_API_KEY. A value in the process environment overrides settings.json.
+Get a key at https://console.mistral.ai/home
         """)
         raise SystemExit(1)
     return api_key
