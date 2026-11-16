@@ -10,12 +10,36 @@ Get API key: https://console.mistral.ai/home
 Default API base URL: https://api.mistral.ai
 """
 
-from mistralai import Mistral
 from pathlib import Path
 import base64
 import os
 import argparse
 import json
+
+
+def _enable_mistralai_import():
+    """mistralai 3.7 annotates against httpx2 aliases that Python 3.11 cannot evaluate."""
+    try:
+        import httpx2._types as httpx_types
+    except ImportError:
+        return
+    from typing import Any
+
+    for name in ("QueryParamTypes", "HeaderTypes"):
+        value = getattr(httpx_types, name, None)
+        if isinstance(value, str) and "\n" in value:
+            setattr(httpx_types, name, Any)
+
+
+_enable_mistralai_import()
+try:
+    from mistralai.client import Mistral
+except ImportError as exc:
+    raise SystemExit(
+        "[!] mistralai 3.7 or newer is required.\n"
+        "    pip install -U 'mistralai>=3.7.0'\n"
+        f"    {exc}"
+    ) from exc
 
 
 DEFAULT_API_BASE_URL = "https://api.mistral.ai"
@@ -135,12 +159,15 @@ def save_images_from_page(page, images_dir, page_num):
     page_images = {}
     
     for img in page.images:
+        image_base64 = getattr(img, "image_base64", None)
+        if not isinstance(image_base64, str) or not image_base64:
+            continue
         try:
             # Parse base64 data
-            if "," in img.image_base64:
-                img_data = base64.b64decode(img.image_base64.split(',')[1])
+            if "," in image_base64:
+                img_data = base64.b64decode(image_base64.split(",", 1)[1])
             else:
-                img_data = base64.b64decode(img.image_base64)
+                img_data = base64.b64decode(image_base64)
             
             img_path = images_dir / f"page{page_num}_{img.id}.png"
             with open(img_path, 'wb') as f:
@@ -183,7 +210,7 @@ def process_pdf(input_path, output_format="markdown", output_dir=None, base_url=
         if resolved_base_url and "server_url" in str(exc):
             print(
                 "[!] This mistralai package does not support a custom base URL. "
-                "Upgrade with: pip install -U 'mistralai>=1.0.0'"
+                "Upgrade with: pip install -U 'mistralai>=3.7.0'"
             )
             raise SystemExit(1)
         raise
@@ -204,9 +231,13 @@ def process_pdf(input_path, output_format="markdown", output_dir=None, base_url=
     
     # OCR processing
     result = client.ocr.process(
-        document={"document_url": signed_url.url},
+        document={
+            "type": "document_url",
+            "document_url": signed_url.url,
+            "document_name": input_path.name,
+        },
         model="mistral-ocr-latest",
-        include_image_base64=True
+        include_image_base64=True,
     )
     
     print(f"[*] Total pages: {len(result.pages)}")
