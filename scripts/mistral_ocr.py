@@ -4,9 +4,11 @@ Mistral OCR Tool - Convert PDF/images to Markdown/JSON/HTML
 
 Usage:
     1. Set API key: export MISTRAL_API_KEY=your_api_key
-    2. Run: python3 mistral_ocr.py -i input.pdf -f markdown
+    2. Optional: export MISTRAL_BASE_URL=https://your-api-host.example
+    3. Run: python3 mistral_ocr.py -i input.pdf -f markdown
 
 Get API key: https://console.mistral.ai/home
+Default API base URL: https://api.mistral.ai
 """
 
 from mistralai import Mistral
@@ -17,7 +19,40 @@ import argparse
 import json
 
 
-MISTRAL_API_URL = "https://console.mistral.ai/home"
+DEFAULT_API_BASE_URL = "https://api.mistral.ai"
+
+
+def resolve_base_url(cli_base_url=None):
+    """Return a custom API server root, or None for the SDK default.
+
+    Precedence is --base-url, then MISTRAL_BASE_URL. The value is the server
+    root, such as https://api.mistral.ai. The client appends /v1 itself.
+    """
+    if cli_base_url is not None:
+        raw = cli_base_url
+    else:
+        raw = os.environ.get("MISTRAL_BASE_URL", "")
+
+    base_url = raw.strip().strip("'\"").rstrip("/")
+    if not base_url:
+        return None
+    if not (base_url.startswith("https://") or base_url.startswith("http://")):
+        print(f"""
+[!] Error: invalid API base URL: {base_url}
+
+Use an absolute URL, for example:
+  export MISTRAL_BASE_URL=https://api.mistral.ai
+  python3 mistral_ocr.py -i input.pdf --base-url https://api.eu.mistral.ai
+        """)
+        raise SystemExit(1)
+    if base_url.endswith("/v1"):
+        print(f"""
+[!] Error: base URL must be the server root, not a /v1 path: {base_url}
+
+Use {base_url[:-3]} instead. Requests go to <base-url>/v1/ocr.
+        """)
+        raise SystemExit(1)
+    return base_url
 
 
 def get_api_key():
@@ -84,7 +119,7 @@ def save_images_from_page(page, images_dir, page_num):
     return page_md
 
 
-def process_pdf(input_path, output_format="markdown", output_dir=None):
+def process_pdf(input_path, output_format="markdown", output_dir=None, base_url=None):
     """Process PDF file."""
     input_path = Path(input_path)
     
@@ -95,8 +130,24 @@ def process_pdf(input_path, output_format="markdown", output_dir=None):
     
     images_dir = output_dir / "images"
     images_dir.mkdir(parents=True, exist_ok=True)
-    
-    client = Mistral(api_key=get_api_key())
+
+    resolved_base_url = resolve_base_url(base_url)
+    client_kwargs = {"api_key": get_api_key()}
+    if resolved_base_url:
+        client_kwargs["server_url"] = resolved_base_url
+        print(f"[*] API base URL: {resolved_base_url}")
+    else:
+        print(f"[*] API base URL: {DEFAULT_API_BASE_URL} (default)")
+    try:
+        client = Mistral(**client_kwargs)
+    except TypeError as exc:
+        if resolved_base_url and "server_url" in str(exc):
+            print(
+                "[!] This mistralai package does not support a custom base URL. "
+                "Upgrade with: pip install -U 'mistralai>=1.0.0'"
+            )
+            raise SystemExit(1)
+        raise
     
     print(f"[*] Processing: {input_path.name}")
     
@@ -179,6 +230,13 @@ def main():
     parser.add_argument("-f", "--format", choices=["markdown", "json", "html"], 
                        default="markdown", help="Output format")
     parser.add_argument("-o", "--output", help="Output directory")
+    parser.add_argument(
+        "-b", "--base-url",
+        help=(
+            "API server root. Overrides MISTRAL_BASE_URL. "
+            f"Default: {DEFAULT_API_BASE_URL}. Do not include /v1."
+        ),
+    )
     
     args = parser.parse_args()
     
@@ -186,7 +244,7 @@ def main():
         print(f"[!] File not found: {args.input}")
         return
     
-    process_pdf(args.input, args.format, args.output)
+    process_pdf(args.input, args.format, args.output, args.base_url)
 
 
 if __name__ == "__main__":

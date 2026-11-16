@@ -1,1 +1,1 @@
-mistralai>=0.0.9
+mistralai>=1.0.0

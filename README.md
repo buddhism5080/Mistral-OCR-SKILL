@@ -1,8 +1,8 @@
 ---
 name: mistral-ocr
-description: Convert PDF/images to Markdown/JSON/HTML using Mistral OCR API. Supports image extraction, table recognition, header/footer handling, and multi-column layouts.
+description: Convert PDF/images to Markdown/JSON/HTML using Mistral OCR API. Supports image extraction, table recognition, header/footer handling, multi-column layouts, and a custom API base URL.
 registry:
-  homepage: https://github.com/YZDame/Mistral-OCR-SKILL
+  homepage: https://github.com/buddhism5080/Mistral-OCR-SKILL
   author: YZDame
   credentials:
     required: true
@@ -14,7 +14,7 @@ registry:
 
 **IMPORTANT - READ BEFORE INSTALLING:**
 
-This tool **uploads your files to Mistral's cloud servers** for OCR processing.
+This tool **uploads your files to the configured API host** for OCR processing. The default host is Mistral (`https://api.mistral.ai`). A custom `MISTRAL_BASE_URL` sends files to that host instead.
 
 **Do NOT use with sensitive or confidential documents** unless:
 - You trust Mistral's data handling policies
@@ -27,7 +27,9 @@ This tool **uploads your files to Mistral's cloud servers** for OCR processing.
 
 # Mistral OCR (OpenClaw Skill)
 
-A powerful OCR tool that converts PDF files and images into Markdown, JSON, or HTML formats using Mistral's state-of-the-art OCR API.
+A powerful OCR tool that converts PDF files and images into Markdown, JSON, or HTML formats using Mistral's OCR API, or any compatible endpoint you configure.
+
+Fork of [YZDame/Mistral-OCR-SKILL](https://github.com/YZDame/Mistral-OCR-SKILL) with a configurable API base URL.
 
 ![License](https://img.shields.io/badge/License-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/Python-3.8+-green.svg)
@@ -49,7 +51,7 @@ OpenClaw will automatically read this README and install dependencies.
 
 ```bash
 # Clone or download this repository
-git clone https://github.com/YZDame/Mistral-OCR-SKILL.git
+git clone https://github.com/buddhism5080/Mistral-OCR-SKILL.git
 cd Mistral-OCR-SKILL
 
 # Install dependencies
@@ -74,6 +76,22 @@ echo 'export MISTRAL_API_KEY=your_api_key_here' >> ~/.zshrc
 source ~/.zshrc
 ```
 
+## API Base URL (Optional)
+
+By default requests go to `https://api.mistral.ai`. Point the client at another Mistral region or a compatible proxy with `MISTRAL_BASE_URL` or `--base-url`. `--base-url` wins when both are set.
+
+Use the server root. The client appends `/v1/...` itself, so do not include `/v1`.
+
+```bash
+# EU region
+export MISTRAL_BASE_URL=https://api.eu.mistral.ai
+
+# Or pass it for one command
+python3 mistral_ocr.py -i input.pdf --base-url https://your-proxy.example
+```
+
+Official roots: `https://api.mistral.ai`, `https://api.eu.mistral.ai`, `https://api.us.mistral.ai`.
+
 ## CLI Usage
 
 ```bash
@@ -91,6 +109,9 @@ python3 mistral_ocr.py -i input.pdf -f html
 # Specify output directory
 python3 mistral_ocr.py -i input.pdf -o ~/my_ocr_results
 
+# Custom API base URL
+python3 mistral_ocr.py -i input.pdf --base-url https://api.us.mistral.ai
+
 # Process images
 python3 mistral_ocr.py -i image.png -f markdown
 ```
@@ -102,6 +123,7 @@ python3 mistral_ocr.py -i image.png -f markdown
 | `-i, --input` | Input file path (required) |
 | `-f, --format` | Output format: markdown/json/html (default: markdown) |
 | `-o, --output` | Output directory (default: ./ocr_result) |
+| `-b, --base-url` | API server root. Overrides `MISTRAL_BASE_URL`. Default: `https://api.mistral.ai` |
 
 ## Output
 
@@ -113,10 +135,10 @@ After processing, you'll get:
 ## Data Privacy
 
 **What happens to your files:**
-1. Files are uploaded to Mistral's OCR API
-2. Files are processed on Mistral servers
+1. Files are uploaded to the configured API base URL (Mistral by default)
+2. Files are processed on that server
 3. Processing results are returned to you
-4. Files are not stored on Mistral servers (per Mistral policy)
+4. Whether that host keeps the file depends on the host. Mistral's own policy says files are not stored on Mistral servers
 
 **For more details, see:** https://mistral.ai/privacy-policy
 
@@ -131,6 +153,10 @@ echo $MISTRAL_API_KEY
 ```
 
 If nothing is returned, re-set the API key following the instructions above.
+
+**Requests hit the wrong host, or `/v1/v1/ocr`:**
+
+Set the server root only, for example `https://api.mistral.ai`, not `https://api.mistral.ai/v1`.
 
 ## License
 
